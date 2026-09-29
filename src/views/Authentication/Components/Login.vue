@@ -20,39 +20,25 @@ const handleSubmit = () => {
     <form class="mt-8 space-y-5" @submit.prevent="handleSubmit">
       <div>
         <label for="email" class="mb-2 block text-sm font-medium text-slate-800">Email address</label>
-        <input
-          id="email"
-          v-model="email"
-          type="email"
-          required
-          placeholder="admin@barangay.gov.ph"
-          class="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-        />
+        <input id="email" v-model="email" type="email" required placeholder="admin@barangay.gov.ph"
+          class="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200" />
       </div>
 
       <div>
         <label for="password" class="mb-2 block text-sm font-medium text-slate-800">Password</label>
-        <input
-          id="password"
-          v-model="password"
-          type="password"
-          required
-          placeholder="Enter password"
-          class="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-        />
+        <input id="password" v-model="password" type="password" required placeholder="Enter password"
+          class="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200" />
       </div>
 
-      <button
-        type="submit"
-        :disabled="!isFormValid"
-        class="mt-6 flex w-full items-center justify-center rounded-md bg-[#0f5d4f] px-3 py-3 text-base font-medium text-white shadow-sm transition hover:bg-[#0e4c40] focus:outline-none focus:ring-2 focus:ring-[#0f5d4f] focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
-      >
+      <button type="submit" :disabled="!isFormValid"
+        class="mt-6 flex w-full items-center justify-center rounded-md bg-[#0f5d4f] px-3 py-3 text-base font-medium text-white shadow-sm transition hover:bg-[#0e4c40] focus:outline-none focus:ring-2 focus:ring-[#0f5d4f] focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500">
         Sign in
       </button>
     </form>
 
     <div class="mt-4 flex items-start gap-2 text-sm text-slate-500">
-      <span class="mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-semibold text-slate-700">
+      <span
+        class="mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-semibold text-slate-700">
         i
       </span>
       <p>
