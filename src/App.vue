@@ -2,11 +2,12 @@
 //import Dashboard from './views/Dashboard.vue'
 //import AdvisoriesView from './views/AdvisoriesView.vue';
 //import ServicesView from './views/Services.vue';
-import InquiriesView from './views/InquiriesView.vue';
+//import InquiriesView from './views/InquiriesView.vue';
+import ResidentsView from './views/ResidentsView.vue';
 </script>
 
 <template>
-  <InquiriesView/>
+  <ResidentsView/>
 </template>
 
 <style scoped></style>
