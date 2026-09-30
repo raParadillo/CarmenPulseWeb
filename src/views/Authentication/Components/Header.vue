@@ -1,12 +1,34 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
 
+// Dynamically compute the page title based on the current route path
+const pageTitle = computed(() => {
+    switch (route.path) {
+        case '/':
+            return 'Dashboard'
+        case '/advisories':
+            return 'Advisories'
+        case '/services':
+            return 'Services'
+        case '/inquiries':
+            return 'Inquiries'
+        case '/residents':
+            return 'Residents'
+        default:
+            return 'Admin Portal'
+    }
+})
 </script>
 
 <template>
     <header class="bg-white border-b border-gray-200 h-16 px-8 flex items-center justify-between sticky top-0 z-10">
-        <h2 class="text-lg font-bold text-gray-900">Dashboard</h2>
+        <!-- Dynamic Page Title -->
+        <h2 class="text-lg font-bold text-gray-900">{{ pageTitle }}</h2>
 
+        <!-- Right Side Header Items -->
         <div class="flex items-center space-x-6">
             <!-- Search Bar -->
             <div class="relative">
@@ -17,11 +39,11 @@
                     </svg>
                 </span>
                 <input type="text" placeholder="Search portal"
-                    class="bg-gray-50 border border-gray-200 rounded-lg pl-9 pr-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-64">
+                    class="bg-gray-50 border border-gray-200 rounded-lg pl-9 pr-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4C9A3E] w-64">
             </div>
 
             <!-- Notification Bell -->
-            <button class="text-gray-400 hover:text-gray-600 relative">
+            <button class="text-gray-400 hover:text-gray-600 relative cursor-pointer">
                 <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -32,7 +54,7 @@
             <!-- User Profile -->
             <div class="flex items-center space-x-3 border-l border-gray-200 pl-6">
                 <div
-                    class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-700 text-xs">
+                    class="w-8 h-8 rounded-full bg-[#4C9A3E]/10 flex items-center justify-center font-bold text-[#4C9A3E] text-xs">
                     MS
                 </div>
                 <div class="text-left">
