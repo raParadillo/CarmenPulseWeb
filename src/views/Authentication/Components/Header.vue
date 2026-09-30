@@ -1,4 +1,6 @@
 <script setup lang="ts">
+
+
 </script>
 
 <template>
@@ -38,12 +40,6 @@
                     <p class="text-[10px] text-gray-400">Administrator</p>
                 </div>
             </div>
-
-            <!-- Log Out Button -->
-            <button
-                class="border border-gray-200 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-                Log Out
-            </button>
         </div>
     </header>
 </template>

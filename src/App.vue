@@ -1,13 +1,8 @@
 <script setup lang="ts">
-//import Dashboard from './views/Dashboard.vue'
-//import AdvisoriesView from './views/AdvisoriesView.vue';
-//import ServicesView from './views/Services.vue';
-//import InquiriesView from './views/InquiriesView.vue';
-import ResidentsView from './views/ResidentsView.vue';
+// Clean and simple root component
 </script>
 
 <template>
-  <ResidentsView/>
+  <!-- This automatically displays the correct view based on the current URL path -->
+  <RouterView />
 </template>
-
-<style scoped></style>
