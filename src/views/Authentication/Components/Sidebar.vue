@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { supabase } from '../../../lib/supabase'
 
 interface NavItem {
     name: string
@@ -38,8 +39,9 @@ const navItems = ref<NavItem[]>([
     }
 ])
 
-const handleLogout = () => {
-    router.push('/login')
+const handleLogout = async () => {
+    await supabase.auth.signOut()
+    await router.push('/login')
 }
 
 </script>

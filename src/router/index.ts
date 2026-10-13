@@ -5,6 +5,7 @@ import DashboardView from "../views/Dashboard.vue";
 import InquiriesView from "../views/InquiriesView.vue";
 import ResidentsView from "../views/ResidentsView.vue";
 import ServicesView from "../views/Services.vue";
+import { isCurrentUserAdmin } from '../lib/auth'
 
 const routes = [
     { path: '/login', name: 'Login', component: LoginView },
@@ -19,5 +20,18 @@ const router = createRouter({
     history: createWebHistory(),
     routes,
 });
+
+router.beforeEach(async (to) => {
+    if (to.path === '/login') {
+        if (await isCurrentUserAdmin()) return '/'
+        return true
+    }
+
+    if (!(await isCurrentUserAdmin())) {
+        return '/login'
+    }
+
+    return true
+})
 
 export default router;

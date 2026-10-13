@@ -1,16 +1,43 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { supabase } from '../../../lib/supabase'
+import { isCurrentUserAdmin } from '../../../lib/auth'
 
 const router = useRouter()
 const email = ref('')
 const password = ref('')
+const errorMessage = ref('')
+const isSubmitting = ref(false)
 
 const isFormValid = computed(() => email.value.trim() !== '' && password.value.trim() !== '')
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!isFormValid.value) return
-  router.push('/')
+
+  isSubmitting.value = true
+  errorMessage.value = ''
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: email.value.trim(),
+    password: password.value,
+  })
+
+  if (error) {
+    errorMessage.value = 'Invalid email or password.'
+    isSubmitting.value = false
+    return
+  }
+
+  if (!(await isCurrentUserAdmin())) {
+    await supabase.auth.signOut()
+    errorMessage.value = 'This account is not authorized for the admin portal.'
+    isSubmitting.value = false
+    return
+  }
+
+  await router.push('/')
+  isSubmitting.value = false
 }
 </script>
 
@@ -74,9 +101,13 @@ const handleSubmit = () => {
             <p>Invalid credentials will be reported. MFA appears when enabled.</p>
           </div>
 
-          <button type="submit" :disabled="!isFormValid"
+          <p v-if="errorMessage" class="rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-700" role="alert">
+            {{ errorMessage }}
+          </p>
+
+          <button type="submit" :disabled="!isFormValid || isSubmitting"
             class="w-full flex items-center justify-center rounded-xl bg-[#4C9A3E] px-4 py-4 text-sm font-semibold text-white shadow-md shadow-[#4C9A3E]/20 transition hover:bg-[#438737] focus:outline-none focus:ring-2 focus:ring-[#4C9A3E] focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none cursor-pointer">
-            Sign In
+            {{ isSubmitting ? 'Signing in...' : 'Sign In' }}
           </button>
         </form>
 
