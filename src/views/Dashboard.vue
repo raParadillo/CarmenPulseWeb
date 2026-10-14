@@ -30,7 +30,7 @@ const fetchResidentCount = async () => {
         return 0
     }
 
-    return count
+    return count ?? 0
 }
 const fetchDailyNewResidents = async () => {
     const {error, count} = await supabase
@@ -45,11 +45,252 @@ const fetchDailyNewResidents = async () => {
         return 0
     }
 
-    return count
+    return count ?? 0
 }
+
+const fetchTotalAdvisories = async () => {
+    const { count, error } = await supabase
+        .from('posts')
+        .select('post_id', { count: 'exact', head: true })
+
+    if (error) {
+        console.error('Error fetching total advisories:', error)
+        return 0
+    }
+
+    return count ?? 0
+}
+
+const fetchTotalMedicalServices = async () => {
+    const { count, error } = await supabase
+        .from('medical_services')
+        .select('service_id', { count: 'exact', head: true })
+
+    if (error) {
+        console.error('Error fetching total medical services:', error)
+        return 0
+    }
+
+    return count ?? 0
+}
+
+const fetchUpcomingServices = async () => {
+    const { count, error } = await supabase
+        .from('medical_services')
+        .select('service_id', { count: 'exact', head: true })
+        .gte('schedule_date', new Date().toISOString().split('T')[0])
+
+    if (error) {
+        console.error('Error fetching upcoming services:', error)
+        return 0
+    }
+
+    return count ?? 0
+}
+
+const fetchFinishedServices = async () => {
+    const { count, error } = await supabase
+        .from('medical_services')
+        .select('service_id', { count: 'exact', head: true })
+        .lt('schedule_date', new Date().toISOString().split('T')[0])
+
+    if (error) {
+        console.error('Error fetching finished services:', error)
+        return 0
+    }
+
+    return count ?? 0
+}
+
+const fetchRecentServices = async () => {
+    const { data, error } = await supabase
+        .from('medical_services')
+        .select('*')
+        .order('service_id', { ascending: false })
+        .limit(5)
+
+    if (error) {
+        console.error('Error fetching recent services:', error)
+        return []
+    }
+
+    return (data ?? []).map((service) => ({
+        service_id: service.service_id,
+        service_name: service.service_name ?? 'Unnamed service',
+        location_venue: service.location_venue ?? '—',
+        schedule_date: service.schedule_date ?? '—',
+        created_at: service.created_at ?? '—',
+    }))
+}
+
+const fetchServicesByLocation = async () => {
+    const { data, error } = await supabase
+        .from('medical_services')
+        .select('location_venue')
+
+    if (error) {
+        console.error('Error fetching services by location:', error)
+        return { labels: [], values: [] }
+    }
+
+    const locationCounts = new Map<string, number>()
+    for (const service of data ?? []) {
+        const location = service.location_venue ?? 'Unknown'
+        locationCounts.set(location, (locationCounts.get(location) ?? 0) + 1)
+    }
+
+    const locations = [...locationCounts.entries()]
+        .sort(([, firstCount], [, secondCount]) => secondCount - firstCount)
+        .slice(0, 5)
+
+    return {
+        labels: locations.map(([location]) => location),
+        values: locations.map(([, count]) => count),
+    }
+}
+
+type TrendRange = 'all' | 'year' | 'month' | 'week' | 'day'
+
+type TrendBucket = {
+    label: string
+    start: Date
+    end: Date
+}
+
+
+const createTrendBuckets = (range: TrendRange, registrations: string[]): TrendBucket[] => {
+    const now = new Date()
+    const buckets: TrendBucket[] = []
+    const addBucket = (label: string, start: Date, end: Date) => {
+        buckets.push({ label, start, end })
+    }
+
+    if (range === 'all') {
+        const dates = registrations.map((value) => new Date(value)).filter((date) => !Number.isNaN(date.getTime()))
+        if (dates.length === 0) return buckets
+
+        const earliest = dates.reduce((first, date) => date < first ? date : first)
+        const cursor = new Date(earliest.getFullYear(), earliest.getMonth(), 1)
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+        while (cursor < end) {
+            const bucketEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+            addBucket(cursor.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }), new Date(cursor), bucketEnd)
+            cursor.setMonth(cursor.getMonth() + 1)
+        }
+    } else if (range === 'year') {
+        for (let month = 0; month < 12; month += 1) {
+            const start = new Date(now.getFullYear(), month, 1)
+            addBucket(start.toLocaleDateString(undefined, { month: 'short' }), start, new Date(now.getFullYear(), month + 1, 1))
+        }
+    } else if (range === 'month') {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        const cursor = new Date(monthStart)
+
+        while (cursor < monthEnd) {
+            const daysUntilSaturday = 6 - cursor.getDay()
+            const bucketEnd = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + daysUntilSaturday + 1)
+            const end = bucketEnd < monthEnd ? bucketEnd : monthEnd
+            const lastDay = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 1)
+            addBucket(
+                `${cursor.toLocaleDateString(undefined, { month: 'short' })} ${cursor.getDate()}-${lastDay.getDate()}`,
+                new Date(cursor),
+                end,
+            )
+            cursor.setTime(end.getTime())
+        }
+    } else if (range === 'week') {
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+        for (let day = 0; day < 7; day += 1) {
+            const bucketStart = new Date(start.getFullYear(), start.getMonth(), start.getDate() + day)
+            const bucketEnd = new Date(bucketStart.getFullYear(), bucketStart.getMonth(), bucketStart.getDate() + 1)
+            addBucket(bucketStart.toLocaleDateString(undefined, { weekday: 'short' }), bucketStart, bucketEnd)
+        }
+    }
+
+    return buckets
+}
+
+const fetchRegistrationTrend = async (range: TrendRange) => {
+    let registrations: string[] = []
+
+    if (range === 'all') {
+        const pageSize = 1000
+        for (let offset = 0; ; offset += pageSize) {
+            const { data, error } = await supabase
+                .from('users')
+                .select('created_at')
+                .eq('role_id', 2)
+                .order('created_at', { ascending: true })
+                .range(offset, offset + pageSize - 1)
+
+            if (error) {
+                console.error('Error fetching registration trend:', error)
+                return { labels: [], values: [] }
+            }
+
+            const page = (data ?? []).map((user) => user.created_at).filter((value): value is string => Boolean(value))
+            registrations.push(...page)
+            if (page.length < pageSize) break
+        }
+    } else {
+        const now = new Date()
+        let start: Date
+        let end: Date
+        if (range === 'year') {
+            start = new Date(now.getFullYear(), 0, 1)
+            end = new Date(now.getFullYear() + 1, 0, 1)
+        } else if (range === 'month') {
+            start = new Date(now.getFullYear(), now.getMonth(), 1)
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        } else {
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+            end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7)
+        }
+
+        const { data, error } = await supabase
+            .from('users')
+            .select('created_at')
+            .eq('role_id', 2)
+            .gte('created_at', start.toISOString())
+            .lt('created_at', end.toISOString())
+
+        if (error) {
+            console.error('Error fetching registration trend:', error)
+            return { labels: [], values: [] }
+        }
+
+        registrations = (data ?? []).map((user) => user.created_at).filter((value): value is string => Boolean(value))
+    }
+
+    const buckets = createTrendBuckets(range, registrations)
+    const values = buckets.map(({ start, end }) =>
+        registrations.filter((value) => {
+            const createdAt = new Date(value)
+            return createdAt >= start && createdAt < end
+        }).length,
+    )
+
+    return { labels: buckets.map(({ label }) => label), values }
+}
+
 
 const residentCount = ref<number | null>(null)
 const dailyNewResidents = ref<number | null>(null)
+const totalAdvisories = ref<number | null>(null)
+const totalMedicalServices = ref<number | null>(null)
+const upcomingServices = ref<number | null>(null)
+const finishedServices = ref<number | null>(null)
+const recentServices = ref<Array<{
+    service_id: number
+    service_name: string
+    schedule_date: string
+    location_venue: string
+    created_at: string
+}>>([])
+const trendRange = ref<TrendRange>('month')
+const trendLabels = ref<string[]>([])
 
 
 Chart.register(
@@ -83,6 +324,27 @@ const chartOptions = {
     },
 }
 
+const updateRegistrationTrend = async () => {
+    const { labels, values } = await fetchRegistrationTrend(trendRange.value)
+    trendLabels.value = labels
+    if (!lineChart) return
+
+    lineChart.data.labels = labels
+    const dataset = lineChart.data.datasets[0]
+    if (dataset) {
+        dataset.data = values
+        lineChart.update()
+    }
+}
+
+const onTrendRangeChange = (event: Event) => {
+    const selectedRange = (event.target as HTMLSelectElement).value
+    if (['all', 'year', 'month', 'week'].includes(selectedRange)) {
+        trendRange.value = selectedRange as TrendRange
+        void updateRegistrationTrend()
+    }
+}
+
 onMounted(() => {
     fetchResidentCount().then((count) => {
         residentCount.value = count
@@ -90,21 +352,71 @@ onMounted(() => {
     fetchDailyNewResidents().then((count) => {
         dailyNewResidents.value = count
     })
+    fetchTotalAdvisories().then((count) => {
+        totalAdvisories.value = count
+        if (donutChart) {
+            const dataset = donutChart.data.datasets[0]
+            if (dataset) {
+                dataset.data = [count, totalMedicalServices.value ?? 0]
+                donutChart.update()
+            }
+        }
+    })
+    fetchTotalMedicalServices().then((count) => {
+        totalMedicalServices.value = count
+        if (donutChart) {
+            const dataset = donutChart.data.datasets[0]
+            if (dataset) {
+                dataset.data = [totalAdvisories.value ?? 0, count]
+                donutChart.update()
+            }
+        }
+    })
+    fetchUpcomingServices().then((count) => {
+        upcomingServices.value = count
+    })
+    fetchFinishedServices().then((count) => {
+        finishedServices.value = count
+    })
+    fetchRecentServices().then((services) => {
+        recentServices.value = services
+    })
+    fetchServicesByLocation().then(({ labels, values }) => {
+        if (barChart) {
+            barChart.data.labels = labels
+            const dataset = barChart.data.datasets[0]
+            if (dataset) {
+                dataset.data = values
+                barChart.update()
+            }
+        }
+    })
 
     if (barChartCanvas.value) {
         barChart = new Chart(barChartCanvas.value, {
             type: 'bar',
             data: {
-                labels: ['Barangay Hall', 'Covered Court', 'Health Center', 'Purok 2', 'Zone 4'],
+                labels: [],
                 datasets: [{
                     label: 'Services',
-                    data: [12, 9, 7, 5, 4],
+                    data: [],
                     backgroundColor: '#10b981',
                     borderRadius: 6,
                 }],
             },
             options: {
                 ...chartOptions,
+                interaction: {
+                    mode: 'index',
+                    intersect: true,
+                },
+                plugins: {
+                    ...chartOptions.plugins,
+                    tooltip: {
+                        enabled: true,
+                        
+                    },
+                },
                 scales: {
                     x: { display: true, grid: { display: false } },
                     y: { beginAtZero: true, ticks: { precision: 0 } },
@@ -117,14 +429,21 @@ onMounted(() => {
         donutChart = new Chart(donutChartCanvas.value, {
             type: 'doughnut',
             data: {
-                labels: ['Advisories', 'Inquiries', 'Other'],
+                labels: ['Advisories', 'Medical services'],
                 datasets: [{
-                    data: [45, 30, 25],
-                    backgroundColor: ['#059669', '#f59e0b', '#d1d5db'],
+                    data: [0, 0],
+                    backgroundColor: ['#059669', '#f59e0b'],
                     borderWidth: 0,
                 }],
             },
-            options: { ...chartOptions, cutout: '60%' },
+            options: {
+                ...chartOptions,
+                cutout: '60%',
+                interaction: {
+                    mode: 'nearest',
+                    intersect: true,
+                },
+            }
         })
     }
 
@@ -132,10 +451,10 @@ onMounted(() => {
         lineChart = new Chart(lineChartCanvas.value, {
             type: 'line',
             data: {
-                labels: ['Sep 8', 'Sep 9', 'Sep 10', 'Sep 11', 'Sep 12', 'Sep 13', 'Sep 14'],
+                labels: [],
                 datasets: [{
                     label: 'Registrations',
-                    data: [18, 26, 22, 35, 31, 42, 38],
+                    data: [],
                     borderColor: '#059669',
                     backgroundColor: '#d1fae5',
                     fill: true,
@@ -151,6 +470,7 @@ onMounted(() => {
                 },
             },
         })
+        void updateRegistrationTrend()
     }
 })
 
@@ -213,17 +533,17 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <!-- Active Advisories KPI Card -->
+                    <!-- Total Advisories KPI Card -->
                     <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-medium text-gray-500">Active advisories</span>
+                            <span class="text-xs font-medium text-gray-500">Total advisories</span>
                             <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                 <span class="material-symbols-outlined text-[18px]">campaign</span>
                             </div>
                         </div>
                         <div class="mt-4">
-                            <h3 class="text-2xl font-bold text-gray-900">12</h3>
-                            <p class="text-xs mt-1 text-gray-400">3 urgent</p>
+                            <h3 class="text-2xl font-bold text-gray-900">{{ totalAdvisories ?? '—' }}</h3>
+                            <p class="text-xs mt-1 text-gray-400">All published advisories</p>
                         </div>
                     </div>
 
@@ -236,22 +556,22 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="mt-4">
-                            <h3 class="text-2xl font-bold text-gray-900">8</h3>
-                            <p class="text-xs mt-1 text-gray-400">Today: Sep 18, 2026</p>
+                            <h3 class="text-2xl font-bold text-gray-900">{{ upcomingServices ?? '—' }}</h3>
+                            <p class="text-xs mt-1 text-gray-400">Based on upcoming applications</p>
                         </div>
                     </div>
 
-                    <!-- Pending Questions KPI Card -->
+                    <!-- Finished Services KPI Card -->
                     <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-medium text-gray-500">Pending questions</span>
+                            <span class="text-xs font-medium text-gray-500">Finished services count</span>
                             <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-[18px]">question_answer</span>
+                                <span class="material-symbols-outlined text-[18px]">check_circle</span>
                             </div>
                         </div>
                         <div class="mt-4">
-                            <h3 class="text-2xl font-bold text-gray-900">17</h3>
-                            <p class="text-xs mt-1 text-gray-400">5 new today</p>
+                            <h3 class="text-2xl font-bold text-gray-900">{{ finishedServices ?? '—' }}</h3>
+                            <p class="text-xs mt-1 text-gray-400">Past due services</p>
                         </div>
                     </div>
                 </div>
@@ -287,12 +607,25 @@ onBeforeUnmount(() => {
                         <div class="mt-6 flex min-h-48 items-center justify-center gap-8">
                             <div class="relative h-36 w-36">
                                 <canvas ref="donutChartCanvas" aria-label="Posts by category donut chart"></canvas>
-                                <span class="absolute inset-0 flex items-center justify-center text-xs font-semibold text-gray-700">100 posts</span>
+                                <span class="absolute inset-0 flex items-center justify-center text-xs font-semibold text-gray-700">
+                                    {{ (totalAdvisories ?? 0) + (totalMedicalServices ?? 0) }} total
+                                </span>
                             </div>
                             <div class="space-y-3 text-xs text-gray-400">
-                                <p><span class="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-emerald-600"></span>Advisories — 45%</p>
-                                <p><span class="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-amber-500"></span>Inquiries — 30%</p>
-                                <p><span class="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-gray-300"></span>Other — 25%</p>
+                                <p>
+                                    <span class="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-emerald-600"></span>
+                                    Advisories — {{ totalAdvisories ?? 0 }}
+                                    ({{ totalAdvisories !== null && (totalAdvisories + (totalMedicalServices ?? 0)) > 0
+                                        ? Math.round((totalAdvisories / (totalAdvisories + (totalMedicalServices ?? 0))) * 100)
+                                        : 0 }}%)
+                                </p>
+                                <p>
+                                    <span class="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-amber-500"></span>
+                                    Medical services — {{ totalMedicalServices ?? 0 }}
+                                    ({{ totalMedicalServices !== null && (totalAdvisories ?? 0) + totalMedicalServices > 0
+                                        ? Math.round((totalMedicalServices / ((totalAdvisories ?? 0) + totalMedicalServices)) * 100)
+                                        : 0 }}%)
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -307,12 +640,11 @@ onBeforeUnmount(() => {
                             <div class="flex items-center gap-3">
                                 <label class="flex items-center gap-2 text-xs font-medium text-gray-500">
                                     <span>Date range</span>
-                                    <select class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 outline-none focus:border-emerald-500" aria-label="Select registration trend date range">
-                                        <option>All time</option>
-                                        <option>This year</option>
-                                        <option>This month</option>
-                                        <option>This week</option>
-                                        <option>Today</option>
+                                    <select :value ="trendRange"@change="onTrendRangeChange" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 outline-none focus:border-emerald-500" aria-label="Select registration trend date range">
+                                        <option value="all">All time (by year)</option>
+                                        <option value="year">This year (by month)</option>
+                                        <option value="month">This month (by week)</option>
+                                        <option value="week">This week (Sunday–Saturday)</option>
                                     </select>
                                 </label>
                                 <span class="text-[10px] font-bold tracking-wider text-emerald-600">LINE CHART</span>
@@ -322,8 +654,8 @@ onBeforeUnmount(() => {
                             <canvas ref="lineChartCanvas" aria-label="Resident registration trend line chart"></canvas>
                         </div>
                         <div class="mt-3 flex justify-between text-[10px] text-gray-400">
-                            <span>Sep 8</span>
-                            <span>Sep 14</span>
+                            <span>{{ trendLabels[0] ?? '' }}</span>
+                            <span>{{ trendLabels[trendLabels.length - 1] ?? '' }}</span>
                         </div>
                     </div>
 
@@ -344,40 +676,19 @@ onBeforeUnmount(() => {
                                 <tr>
                                     <th class="px-5 py-3 font-semibold">Service</th>
                                     <th class="px-5 py-3 font-semibold">Location</th>
-                                    <th class="px-5 py-3 font-semibold">Date</th>
-                                    <th class="px-5 py-3 font-semibold">Status</th>
+                                    <th class="px-5 py-3 font-semibold">Schedule date</th>
+                                    <th class="px-5 py-3 font-semibold">Created at</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr class="border-t border-gray-50">
-                                    <td class="px-5 py-3 font-semibold text-gray-800">Flu vaccination clinic</td>
-                                    <td class="px-5 py-3 text-gray-500">Barangay Hall</td>
-                                    <td class="px-5 py-3 text-gray-500">Sep 18, 2026</td>
-                                    <td class="px-5 py-3"><span class="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">Scheduled</span></td>
+                                <tr v-for="service in recentServices" :key="service.service_id" class="border-t border-gray-50">
+                                    <td class="px-5 py-3 font-semibold text-gray-800">{{ service.service_name }}</td>
+                                    <td class="px-5 py-3 text-gray-500">{{ service.location_venue }}</td>
+                                    <td class="px-5 py-3 text-gray-500">{{ service.schedule_date }}</td>
+                                    <td class="px-5 py-3 text-gray-500">{{ service.created_at }}</td>
                                 </tr>
-                                <tr class="border-t border-gray-50">
-                                    <td class="px-5 py-3 font-semibold text-gray-800">Nutrition screening</td>
-                                    <td class="px-5 py-3 text-gray-500">Purok 2</td>
-                                    <td class="px-5 py-3 text-gray-500">Sep 16, 2026</td>
-                                    <td class="px-5 py-3"><span class="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Completed</span></td>
-                                </tr>
-                                <tr class="border-t border-gray-50">
-                                    <td class="px-5 py-3 font-semibold text-gray-800">Dengue prevention briefing</td>
-                                    <td class="px-5 py-3 text-gray-500">Covered Court</td>
-                                    <td class="px-5 py-3 text-gray-500">Sep 15, 2026</td>
-                                    <td class="px-5 py-3"><span class="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Pending</span></td>
-                                </tr>
-                                 <tr class="border-t border-gray-50">
-                                    <td class="px-5 py-3 font-semibold text-gray-800">Dengue prevention briefing</td>
-                                    <td class="px-5 py-3 text-gray-500">Covered Court</td>
-                                    <td class="px-5 py-3 text-gray-500">Sep 15, 2026</td>
-                                    <td class="px-5 py-3"><span class="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Pending</span></td>
-                                </tr>
-                                 <tr class="border-t border-gray-50">
-                                    <td class="px-5 py-3 font-semibold text-gray-800">Dengue prevention briefing</td>
-                                    <td class="px-5 py-3 text-gray-500">Covered Court</td>
-                                    <td class="px-5 py-3 text-gray-500">Sep 15, 2026</td>
-                                    <td class="px-5 py-3"><span class="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Pending</span></td>
+                                <tr v-if="recentServices.length === 0" class="border-t border-gray-50">
+                                    <td colspan="4" class="px-5 py-6 text-center text-gray-400">No services found</td>
                                 </tr>
                             </tbody>
                         </table>
