@@ -1,8 +1,47 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { supabase } from '../../../lib/supabase'
 
 const route = useRoute()
+const currentUserName = ref('Account')
+const currentUserInitials = computed(() => currentUserName.value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((name) => name[0]?.toUpperCase() ?? '')
+    .join(''))
+
+const fetchCurrentUserName = async () => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError) {
+        console.error('Error fetching current user:', userError)
+        return
+    }
+
+    if (!user) return
+
+    const { data, error } = await supabase
+        .from('users')
+        .select('first_name, last_name')
+        .eq('auth_user_id', user.id)
+        .maybeSingle()
+
+    if (error) {
+        console.error('Error fetching current user profile:', error)
+        return
+    }
+
+    const profileName = [data?.first_name, data?.last_name]
+        .filter((name): name is string => Boolean(name?.trim()))
+        .join(' ')
+    currentUserName.value = profileName || user.email?.split('@')[0] || 'Account'
+}
+
+onMounted(() => {
+    void fetchCurrentUserName()
+})
 
 // Dynamically compute the page title based on the current route path
 const pageTitle = computed(() => {
@@ -39,10 +78,10 @@ const pageTitle = computed(() => {
             <div class="flex items-center space-x-3 border-l border-gray-200 pl-6">
                 <div
                     class="w-8 h-8 rounded-full bg-[#4C9A3E]/10 flex items-center justify-center font-bold text-[#4C9A3E] text-xs">
-                    MS
+                    {{ currentUserInitials }}
                 </div>
                 <div class="text-left">
-                    <p class="text-xs font-bold text-gray-900 leading-tight">Maria Santos</p>
+                    <p class="text-xs font-bold text-gray-900 leading-tight">{{ currentUserName }}</p>
                     <p class="text-[10px] text-gray-400">Administrator</p>
                 </div>
             </div>

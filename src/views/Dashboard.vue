@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
     ArcElement,
     BarController,
@@ -18,6 +18,44 @@ import {
 import Header from './Authentication/Components/Header.vue'
 import Sidebar from './Authentication/Components/Sidebar.vue'
 import { supabase } from '../lib/supabase'
+
+const currentUserName = ref('there')
+const todayLabel = computed(() => new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+}))
+const greeting = computed(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 18) return 'Good afternoon'
+    return 'Good evening'
+})
+
+const fetchCurrentUserName = async () => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError) {
+        console.error('Error fetching current user:', userError)
+        return
+    }
+
+    if (!user) return
+
+    const { data, error } = await supabase
+        .from('users')
+        .select('first_name')
+        .eq('auth_user_id', user.id)
+        .maybeSingle()
+
+    if (error) {
+        console.error('Error fetching current user name:', error)
+        return
+    }
+
+    currentUserName.value = data?.first_name?.trim() || user.email?.split('@')[0] || 'there'
+}
 
 const fetchResidentCount = async () => {
     const {count, error } = await supabase
@@ -346,6 +384,7 @@ const onTrendRangeChange = (event: Event) => {
 }
 
 onMounted(() => {
+    void fetchCurrentUserName()
     fetchResidentCount().then((count) => {
         residentCount.value = count
     })
@@ -497,9 +536,8 @@ onBeforeUnmount(() => {
                 <!-- Greeting & Action Buttons -->
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Good morning, Maria</h1>
-                        <p class="text-sm text-gray-500 mt-0.5">Monday, September 14 • Here's what needs attention
-                            today.</p>
+                        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">{{ greeting }}, {{ currentUserName }}</h1>
+                        <p class="text-sm text-gray-500 mt-0.5">{{ todayLabel }} • Here's what needs attention today.</p>
                     </div>
                     <div class="flex items-center space-x-3">
                         <button
