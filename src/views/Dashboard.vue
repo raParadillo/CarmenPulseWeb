@@ -130,7 +130,7 @@ const fetchFinishedServices = async () => {
     const { count, error } = await supabase
         .from('medical_services')
         .select('service_id', { count: 'exact', head: true })
-        .lt('schedule_date', new Date().toISOString().split('T')[0])
+        .eq('status', 'Completed')
 
     if (error) {
         console.error('Error fetching finished services:', error)
