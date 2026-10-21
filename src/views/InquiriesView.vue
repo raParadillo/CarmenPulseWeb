@@ -427,7 +427,7 @@ onMounted(() => {
                         </div>
                     </section>
 
-                    <section class="lg:col-span-8 rounded-xl border border-gray-100 bg-white p-6 shadow-sm flex flex-col gap-5">
+                    <section class="min-w-0 lg:col-span-8 rounded-xl border border-gray-100 bg-white p-6 shadow-sm flex flex-col gap-5">
                         <div>
                             <h2 class="text-base font-bold text-gray-900">Conversation</h2>
                             <p v-if="activeService" class="mt-0.5 text-xs text-gray-400">
@@ -437,7 +437,7 @@ onMounted(() => {
                         </div>
 
                         <div ref="commentsScroller"
-                            class="min-h-64 max-h-[28rem] space-y-4 overflow-y-auto rounded-xl bg-gray-50/60 p-4"
+                            class="min-h-64 min-w-0 max-h-[28rem] space-y-4 overflow-x-hidden overflow-y-auto rounded-xl bg-gray-50/60 p-4"
                             @scroll.passive="handleCommentsScroll">
                             <p v-if="isLoadingOlderComments" role="status" class="py-2 text-center text-xs text-gray-400">
                                 Loading older comments…
@@ -461,8 +461,9 @@ onMounted(() => {
                                 No comments for this service yet.
                             </div>
                             <div v-for="comment in comments" :key="comment.comment_id"
-                                class="flex" :class="comment.roleId === 1 ? 'justify-end' : 'justify-start'">
-                                <div class="max-w-[85%] rounded-2xl border px-4 py-3 shadow-sm"
+                                class="flex min-w-0 max-w-full" :class="comment.roleId === 1 ? 'justify-end' : 'justify-start'">
+                                <div class="min-w-0 max-w-[85%] rounded-2xl border px-4 py-3 shadow-sm"
+                                    :style="{ width: 'fit-content', overflowWrap: 'anywhere' }"
                                     :class="comment.roleId === 1
                                         ? 'border-emerald-200 bg-emerald-100 text-emerald-950'
                                         : 'border-gray-200 bg-white text-gray-800'">
@@ -476,7 +477,8 @@ onMounted(() => {
                                         </span>
                                         <span class="ml-auto text-[10px] opacity-60">{{ formatTimestamp(comment.created_at) }}</span>
                                     </div>
-                                    <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ comment.content }}</p>
+                                    <p class="min-w-0 text-sm leading-relaxed whitespace-pre-wrap"
+                                        :style="{ overflowWrap: 'anywhere', wordBreak: 'break-word' }">{{ comment.content }}</p>
                                 </div>
                             </div>
                         </div>
