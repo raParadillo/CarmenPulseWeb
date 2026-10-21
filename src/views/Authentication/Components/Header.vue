@@ -56,6 +56,8 @@ const pageTitle = computed(() => {
             return 'Inquiries'
         case '/residents':
             return 'Residents'
+        case '/admins':
+            return 'Admin Directory'
         default:
             return 'Admin Portal'
     }

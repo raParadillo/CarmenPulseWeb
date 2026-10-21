@@ -457,7 +457,7 @@ onMounted(() => {
                     },
                 },
                 scales: {
-                    x: { display: true, grid: { display: false } },
+                    x: { ticks: { display: false }, grid: { display: false } },
                     y: { beginAtZero: true, ticks: { precision: 0 } },
                 },
             },
@@ -588,7 +588,7 @@ onBeforeUnmount(() => {
                     <!-- Upcoming Services KPI Card -->
                     <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-medium text-gray-500">Upcoming services</span>
+                            <span class="text-xs font-medium text-gray-500">Upcoming & Ongoing services</span>
                             <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                 <span class="material-symbols-outlined text-[18px]">event</span>
                             </div>
@@ -602,7 +602,7 @@ onBeforeUnmount(() => {
                     <!-- Finished Services KPI Card -->
                     <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-medium text-gray-500">Finished services count</span>
+                            <span class="text-xs font-medium text-gray-500">Completed services count</span>
                             <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                 <span class="material-symbols-outlined text-[18px]">check_circle</span>
                             </div>

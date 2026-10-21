@@ -40,3 +40,14 @@ npm run dev
 ```sh
 npm run build
 ```
+
+## Creating administrator accounts
+
+Admin Directory creates and deletes Auth users through Supabase Edge Functions. Deploy both from the repository root:
+
+```sh
+supabase functions deploy create-admin
+supabase functions deploy delete-admin
+```
+
+The functions use the Supabase project URL, anon key, and `SUPABASE_SERVICE_ROLE_KEY` from the Edge Function environment. Keep the service-role key server-side; do not add it to the Vite `.env` files or client code. Both functions verify the caller with `public.is_admin()`. Admin deletion removes the Auth sign-in and deletes the profile when it has no dependent records; otherwise the profile is deactivated while keeping it for referential integrity.
